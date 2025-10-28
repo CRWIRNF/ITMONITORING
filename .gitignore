@@ -1,0 +1,26 @@
+# Vertrauliche Dateien
+config.local.js
+*.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Betriebssystem-Dateien
+.DS_Store
+Thumbs.db
+
+# Editor-Dateien
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules (falls später verwendet)
+node_modules/
+
+# Build-Verzeichnisse
+dist/
+build/
