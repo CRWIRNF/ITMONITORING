@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT Monitoring Dashboard - Demo mit echten Daten</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header .logo {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+        }
+
+        .header-info {
+            text-align: right;
+        }
+
+        .last-update {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .status-summary {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 1em;
+            font-weight: 600;
+        }
+
+        .status-badge.online {
+            background: #10b981;
+        }
+
+        .status-badge.offline {
+            background: #ef4444;
+        }
+
+        .status-badge.warning {
+            background: #f59e0b;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .service-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: #10b981;
+            transition: all 0.3s ease;
+        }
+
+        .service-card.offline::before {
+            background: #ef4444;
+        }
+
+        .service-card.warning::before {
+            background: #f59e0b;
+        }
+
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .service-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .service-id {
+            font-size: 0.9em;
+            opacity: 0.7;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.online {
+            background: #10b981;
+            box-shadow: 0 0 20px #10b981;
+        }
+
+        .status-indicator.offline {
+            background: #ef4444;
+            box-shadow: 0 0 20px #ef4444;
+            animation: none;
+        }
+
+        .status-indicator.warning {
+            background: #f59e0b;
+            box-shadow: 0 0 20px #f59e0b;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .service-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-label {
+            font-size: 0.85em;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .signal-strength {
+            margin-top: 15px;
+        }
+
+        .signal-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .signal-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 5px;
+        }
+
+        .demo-banner {
+            background: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 15px;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>
+                    <div class="logo">📡</div>
+                    IT Monitoring Dashboard
+                </h1>
+            </div>
+            <div class="header-info">
+                <div class="last-update" id="lastUpdate">
+                    Letzte Aktualisierung: --:--:--
+                </div>
+                <div class="status-summary">
+                    <div class="status-badge online" id="onlineCount">
+                        Aktiv: 0
+                    </div>
+                    <div class="status-badge offline" id="offlineCount">
+                        Inaktiv: 0
+                    </div>
+                    <div class="status-badge warning" id="warningCount">
+                        Warnung: 0
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="demo-banner">
+                📊 DEMO-MODUS: Zeigt Ihre echten Daten basierend auf der API-Response
+            </div>
+            <div id="content"></div>
+        </div>
+
+        <div class="footer">
+            IT-Abteilung | Demo-Version mit echten Daten
+        </div>
+    </div>
+
+    <script>
+        // Ihre echten Daten von der API (Stand: 28.10.2025)
+        const REAL_DATA = {
+            "serviceLines": [
+                {
+                    "id": "5caeef4a-eeb5-411e-94e3-85578a8dcc32",
+                    "name": "FRISIA I (IMO: 7018604) KITP00373617",
+                    "status": "active",
+                    "monthlyUsage": [
+                        {
+                            "totalStandardGb": 0,
+                            "totalPriorityGb": 731.34,
+                            "includedGb": 1000
+                        }
+                    ],
+                    "userTerminals": [
+                        {
+                            "id": "01000000-00000000-00c326fa",
+                            "kitSerialNumber": "KITP00373617",
+                            "dishSerialNumber": "HPCP411939100801",
+                            "active": true
+                        }
+                    ]
+                },
+                {
+                    "id": "6f2bc7a2-c27d-4ba7-b631-c70b87ba4cda",
+                    "name": "FRISIA IV (IMO: 9246839) KITP00373632",
+                    "status": "active",
+                    "monthlyUsage": [
+                        {
+                            "totalStandardGb": 23.48,
+                            "totalPriorityGb": 1000.68,
+                            "includedGb": 1000
+                        }
+                    ],
+                    "userTerminals": [
+                        {
+                            "id": "01000000-00000000-00c34ce2",
+                            "kitSerialNumber": "KITP00373632",
+                            "dishSerialNumber": "HPCP411431501801",
+                            "active": true
+                        }
+                    ]
+                },
+                {
+                    "id": "a0db58b3-dc85-410e-87b7-70626d955181",
+                    "name": "FRISIA IX (IMO: 7924310) KITP00373630",
+                    "status": "active",
+                    "monthlyUsage": [
+                        {
+                            "totalStandardGb": 0,
+                            "totalPriorityGb": 208.96,
+                            "includedGb": 1000
+                        }
+                    ],
+                    "userTerminals": [
+                        {
+                            "id": "01000000-00000000-00c3366e",
+                            "kitSerialNumber": "KITP00373630",
+                            "dishSerialNumber": "HPCP411164603701",
+                            "active": true
+                        }
+                    ]
+                },
+                {
+                    "id": "85ac4f00-e492-4feb-a2ac-068112d07538",
+                    "name": "FRISIA VI (IMO: 8827179) KITP00373616",
+                    "status": "active",
+                    "monthlyUsage": [
+                        {
+                            "totalStandardGb": 0,
+                            "totalPriorityGb": 423.4,
+                            "includedGb": 1000
+                        }
+                    ],
+                    "userTerminals": [
+                        {
+                            "id": "01000000-00000000-00c358d1",
+                            "kitSerialNumber": "KITP00373616",
+                            "dishSerialNumber": "HPCP411697202401",
+                            "active": true
+                        }
+                    ]
+                },
+                {
+                    "id": "889f800f-fa00-42fe-b1e2-1787f239507e",
+                    "name": "FRISIA II (IMO: 7723974) KITP00373634",
+                    "status": "active",
+                    "monthlyUsage": [
+                        {
+                            "totalStandardGb": 16.21,
+                            "totalPriorityGb": 1000.56,
+                            "includedGb": 1000
+                        }
+                    ],
+                    "userTerminals": [
+                        {
+                            "id": "01000000-00000000-00c35659",
+                            "kitSerialNumber": "KITP00373634",
+                            "dishSerialNumber": "HPCP411509506401",
+                            "active": true
+                        }
+                    ]
+                },
+                {
+                    "id": "088da835-2b5b-4b11-ae75-d384399bff59",
+                    "name": "FRISIA III (IMO: 9732450) KITP00421395",
+                    "status": "active",
+                    "monthlyUsage": [
+                        {
+                            "totalStandardGb": 2.63,
+                            "totalPriorityGb": 1000.67,
+                            "includedGb": 1000
+                        }
+                    ],
+                    "userTerminals": [
+                        {
+                            "id": "01000000-00000000-00c4c235",
+                            "kitSerialNumber": "KITP00421395",
+                            "dishSerialNumber": "HPCP414702903601",
+                            "active": true
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // Extrahiere Schiffsnamen
+        function extractShipName(fullName) {
+            const match = fullName.match(/^([^(]+)/);
+            return match ? match[1].trim() : fullName;
+        }
+
+        // Extrahiere IMO-Nummer
+        function extractIMO(fullName) {
+            const match = fullName.match(/IMO:\s*(\d+)/);
+            return match ? match[1] : null;
+        }
+
+        // Berechne Datenverbrauch in %
+        function calculateUsagePercentage(usage) {
+            if (!usage || !usage.includedGb) return 0;
+            const totalUsed = (usage.totalStandardGb || 0) + (usage.totalPriorityGb || 0);
+            return Math.round((totalUsed / usage.includedGb) * 100);
+        }
+
+        // Formatiere Datenverbrauch
+        function formatDataUsage(gb) {
+            if (gb === null || gb === undefined) return '--';
+            return `${gb.toFixed(2)} GB`;
+        }
+
+        // Bestimme Status-Klasse
+        function determineStatusClass(serviceLine) {
+            if (serviceLine.status !== 'active') {
+                return 'offline';
+            }
+
+            const hasActiveTerminal = serviceLine.userTerminals &&
+                serviceLine.userTerminals.some(t => t.active);
+
+            if (!hasActiveTerminal) {
+                return 'offline';
+            }
+
+            if (serviceLine.monthlyUsage && serviceLine.monthlyUsage.length > 0) {
+                const currentUsage = serviceLine.monthlyUsage[0];
+                const usagePercent = calculateUsagePercentage(currentUsage);
+
+                if (usagePercent >= 100) {
+                    return 'warning';
+                }
+            }
+
+            return 'online';
+        }
+
+        // Service Card HTML generieren
+        function createServiceCard(serviceLine) {
+            const shipName = extractShipName(serviceLine.name);
+            const imo = extractIMO(serviceLine.name);
+            const statusClass = determineStatusClass(serviceLine);
+
+            const currentUsage = serviceLine.monthlyUsage && serviceLine.monthlyUsage.length > 0
+                ? serviceLine.monthlyUsage[0]
+                : null;
+
+            const totalUsed = currentUsage
+                ? (currentUsage.totalStandardGb || 0) + (currentUsage.totalPriorityGb || 0)
+                : 0;
+
+            const includedGb = currentUsage ? currentUsage.includedGb : 0;
+            const usagePercent = calculateUsagePercentage(currentUsage);
+
+            const activeTerminals = serviceLine.userTerminals
+                ? serviceLine.userTerminals.filter(t => t.active).length
+                : 0;
+            const totalTerminals = serviceLine.userTerminals ? serviceLine.userTerminals.length : 0;
+
+            const terminal = serviceLine.userTerminals && serviceLine.userTerminals.length > 0
+                ? serviceLine.userTerminals[0]
+                : null;
+
+            let usageBarColor = 'linear-gradient(90deg, #10b981 0%, #059669 100%)';
+            if (usagePercent >= 100) {
+                usageBarColor = 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)';
+            } else if (usagePercent >= 80) {
+                usageBarColor = 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)';
+            }
+
+            return `
+                <div class="service-card ${statusClass}">
+                    <div class="service-header">
+                        <div>
+                            <div class="service-title">${shipName}</div>
+                            <div class="service-id">${imo ? `IMO: ${imo}` : serviceLine.id}</div>
+                        </div>
+                        <div class="status-indicator ${statusClass}"></div>
+                    </div>
+
+                    <div class="service-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Status</div>
+                            <div class="detail-value">${serviceLine.status === 'active' ? 'Aktiv' : 'Inaktiv'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Terminals</div>
+                            <div class="detail-value">${activeTerminals} / ${totalTerminals} aktiv</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Kit Serial</div>
+                            <div class="detail-value">${terminal ? terminal.kitSerialNumber : '--'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Dish Serial</div>
+                            <div class="detail-value">${terminal ? terminal.dishSerialNumber.substring(0, 12) + '...' : '--'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Datenverbrauch</div>
+                            <div class="detail-value">${formatDataUsage(totalUsed)}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Limit</div>
+                            <div class="detail-value">${includedGb} GB</div>
+                        </div>
+                        ${currentUsage && currentUsage.totalStandardGb > 0 ? `
+                        <div class="detail-item">
+                            <div class="detail-label">Standard</div>
+                            <div class="detail-value">${formatDataUsage(currentUsage.totalStandardGb)}</div>
+                        </div>
+                        ` : ''}
+                        <div class="detail-item">
+                            <div class="detail-label">Priority</div>
+                            <div class="detail-value">${currentUsage ? formatDataUsage(currentUsage.totalPriorityGb) : '--'}</div>
+                        </div>
+                    </div>
+
+                    <div class="signal-strength">
+                        <div class="detail-label">Datenverbrauch: ${usagePercent}% ${usagePercent >= 100 ? '⚠️ LIMIT ÜBERSCHRITTEN' : ''}</div>
+                        <div class="signal-bar">
+                            <div class="signal-fill" style="width: ${Math.min(usagePercent, 100)}%; background: ${usageBarColor}"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Dashboard anzeigen
+        function displayDashboard() {
+            const contentDiv = document.getElementById('content');
+            const serviceLines = REAL_DATA.serviceLines;
+
+            // Status-Zähler
+            let onlineCount = 0;
+            let offlineCount = 0;
+            let warningCount = 0;
+
+            serviceLines.forEach(service => {
+                const status = determineStatusClass(service);
+                if (status === 'online') onlineCount++;
+                else if (status === 'offline') offlineCount++;
+                else if (status === 'warning') warningCount++;
+            });
+
+            // Header aktualisieren
+            document.getElementById('onlineCount').textContent = `Aktiv: ${onlineCount}`;
+            document.getElementById('offlineCount').textContent = `Inaktiv: ${offlineCount}`;
+            document.getElementById('warningCount').textContent = `Warnung: ${warningCount}`;
+
+            // Services rendern
+            const servicesHtml = serviceLines.map(service => createServiceCard(service)).join('');
+            contentDiv.innerHTML = `<div class="services-grid">${servicesHtml}</div>`;
+
+            // Letzte Aktualisierung
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent =
+                `Letzte Aktualisierung: ${now.toLocaleTimeString('de-DE')}`;
+        }
+
+        // Initial anzeigen
+        displayDashboard();
+
+        console.log('IT Monitoring Dashboard (Demo) geladen');
+        console.log('Anzahl Service-Lines:', REAL_DATA.serviceLines.length);
+    </script>
+</body>
+</html>
