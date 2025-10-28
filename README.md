@@ -4,15 +4,21 @@ Ein professionelles Dashboard zur Überwachung von Starlink-Systemen, optimiert 
 
 ## Features
 
-- **Echtzeit-Monitoring** von Starlink-Antennen
+- **Echtzeit-Monitoring** von Starlink-Systemen auf Schiffen
 - **Automatische Aktualisierung** alle 30 Sekunden
-- **Visuelle Status-Indikatoren** (Online, Offline, Warnung)
-- **Detaillierte Metriken** für jede Antenne:
-  - Signalstärke
-  - Uptime
-  - Latenz
-  - Download-/Upload-Geschwindigkeit
-  - Letzter Kontakt
+- **Visuelle Status-Indikatoren** (Aktiv, Inaktiv, Warnung)
+- **Detaillierte Metriken** für jede Service-Line:
+  - **Schiffsinformationen**: Name und IMO-Nummer
+  - **Service-Status**: Aktiv/Inaktiv mit visueller Anzeige
+  - **Terminal-Status**: Anzahl aktiver Terminals
+  - **Datenverbrauch**: Monatlicher Verbrauch in GB
+  - **Verbrauchsübersicht**: Prozentuale Auslastung des Daten-Limits
+  - **Standard- und Priority-Daten**: Aufschlüsselung des Verbrauchs
+  - **Hardware-Details**: Kit- und Dish-Seriennummern
+- **Intelligente Warnungen**:
+  - Orange-Warnung bei Datenverbrauch >80%
+  - Rot-Warnung bei Überschreitung des Limits (>100%)
+  - Automatische Erkennung inaktiver Terminals
 - **Responsive Design** für verschiedene Bildschirmgrößen
 - **Farbcodierte Visualisierung** für schnelle Übersicht
 - **TV-optimiert** mit großen, gut lesbaren Elementen
@@ -129,45 +135,61 @@ Accept: application/json, application/problem+json
 Authorization: Bearer YOUR_TOKEN
 ```
 
-### Erwartete API-Response-Struktur
+### API-Response-Struktur
 
-Das Dashboard ist flexibel und passt sich an verschiedene Datenstrukturen an. Ideal sind folgende Felder:
+Das Dashboard verarbeitet die Castor Marine API-Response mit folgender Struktur:
 
 ```json
-[
-  {
-    "id": "SL-001",
-    "name": "Starlink Terminal 1",
-    "status": "online",
-    "location": "Standort A",
-    "signalStrength": 95,
-    "uptime": "99.8%",
-    "latency": "25ms",
-    "downlink": "250 Mbps",
-    "uplink": "20 Mbps",
-    "lastSeen": "2025-10-28T10:30:00Z"
-  }
-]
+{
+  "serviceLines": [
+    {
+      "id": "uuid",
+      "name": "SCHIFFSNAME (IMO: 1234567) KITP00373617",
+      "nickname": "SCHIFFSNAME (IMO: 1234567) KITP00373617",
+      "status": "active",
+      "monthlyUsage": [
+        {
+          "totalStandardGb": 23.48,
+          "totalPriorityGb": 1000.68,
+          "totalOptInPriorityGb": 0,
+          "totalNonBillableGb": 0,
+          "includedGb": 1000,
+          "startDate": "2025-10-01T00:00:00Z",
+          "endDate": "2025-11-01T00:00:00Z"
+        }
+      ],
+      "userTerminals": [
+        {
+          "id": "01000000-00000000-00c326fa",
+          "kitSerialNumber": "KITP00373617",
+          "dishSerialNumber": "HPCP411939100801",
+          "active": true
+        }
+      ]
+    }
+  ],
+  "total": 6
+}
 ```
 
-**Hinweis:** Wenn Ihre API eine andere Struktur hat, kann das Dashboard einfach angepasst werden.
+**Wichtige Felder:**
+- `serviceLines`: Array mit allen Service-Lines (Schiffe)
+- `name`: Enthält Schiffsname, IMO-Nummer und Kit-Serial
+- `status`: "active" oder andere Status-Werte
+- `monthlyUsage`: Array mit monatlichen Verbrauchsdaten (erstes Element = aktueller Monat)
+- `userTerminals`: Array mit Starlink-Terminals
+- `active`: Boolean, ob Terminal aktiv ist
+
+**Status-Logik:**
+- **Aktiv** (Grün): Service-Line ist aktiv, Terminals sind online, Datenverbrauch <100%
+- **Warnung** (Orange): Datenverbrauch ≥100% des Limits
+- **Inaktiv** (Rot): Service-Line inaktiv ODER keine aktiven Terminals
 
 ## Entwicklung & Testing
-
-### Mock-Daten verwenden
-
-Für Entwicklung ohne API-Zugriff:
-
-1. Drücken Sie die Taste `M` im Dashboard, um Mock-Daten zu aktivieren
-2. Oder setzen Sie in `dashboard.html`:
-   ```javascript
-   let useMockData = true;
-   ```
 
 ### Tastatur-Shortcuts
 
 - **F5** oder **Strg+R**: Manuelles Refresh
-- **M**: Toggle zwischen echten Daten und Mock-Daten
 - **F11**: Vollbildmodus (Browser-Standard)
 
 ### Browser-Konsole

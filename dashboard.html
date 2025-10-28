@@ -341,61 +341,9 @@
             refreshInterval: 30000 // 30 Sekunden
         };
 
-        // Mock-Daten für Entwicklung/Tests (werden durch echte API-Daten ersetzt)
-        const MOCK_DATA = [
-            {
-                id: 'SL-001',
-                name: 'Starlink Terminal 1',
-                status: 'online',
-                location: 'Standort A',
-                signalStrength: 95,
-                uptime: '99.8%',
-                latency: '25ms',
-                downlink: '250 Mbps',
-                uplink: '20 Mbps',
-                lastSeen: new Date()
-            },
-            {
-                id: 'SL-002',
-                name: 'Starlink Terminal 2',
-                status: 'online',
-                location: 'Standort B',
-                signalStrength: 87,
-                uptime: '99.5%',
-                latency: '32ms',
-                downlink: '220 Mbps',
-                uplink: '18 Mbps',
-                lastSeen: new Date()
-            },
-            {
-                id: 'SL-003',
-                name: 'Starlink Terminal 3',
-                status: 'warning',
-                location: 'Standort C',
-                signalStrength: 65,
-                uptime: '95.2%',
-                latency: '58ms',
-                downlink: '150 Mbps',
-                uplink: '12 Mbps',
-                lastSeen: new Date()
-            },
-            {
-                id: 'SL-004',
-                name: 'Starlink Terminal 4',
-                status: 'offline',
-                location: 'Standort D',
-                signalStrength: 0,
-                uptime: '0%',
-                latency: '--',
-                downlink: '--',
-                uplink: '--',
-                lastSeen: new Date(Date.now() - 3600000)
-            }
-        ];
-
         let useMockData = false; // Auf true setzen für Entwicklung ohne API-Zugriff
 
-        // Service Lines abrufen
+        // Service Lines von API abrufen
         async function fetchServiceLines() {
             try {
                 const response = await fetch(`${API_CONFIG.baseUrl}/service-lines`, {
@@ -411,73 +359,156 @@
                 }
 
                 const data = await response.json();
-                return data;
+                return data.serviceLines || [];
             } catch (error) {
                 console.error('Fehler beim Abrufen der Daten:', error);
-                // Fallback auf Mock-Daten bei Fehler
-                if (!useMockData) {
-                    console.warn('API nicht erreichbar, verwende Mock-Daten');
-                    useMockData = true;
-                }
-                return MOCK_DATA;
+                throw error;
             }
         }
 
-        // Status basierend auf Signalstärke ermitteln
-        function determineStatus(signalStrength) {
-            if (signalStrength === 0) return 'offline';
-            if (signalStrength < 70) return 'warning';
+        // Extrahiere Schiffsnamen aus dem vollständigen Namen
+        function extractShipName(fullName) {
+            // Extrahiert z.B. "FRISIA I" aus "FRISIA I (IMO: 7018604) KITP00373617"
+            const match = fullName.match(/^([^(]+)/);
+            return match ? match[1].trim() : fullName;
+        }
+
+        // Extrahiere IMO-Nummer
+        function extractIMO(fullName) {
+            const match = fullName.match(/IMO:\s*(\d+)/);
+            return match ? match[1] : null;
+        }
+
+        // Berechne Datenverbrauch in %
+        function calculateUsagePercentage(usage) {
+            if (!usage || !usage.includedGb) return 0;
+            const totalUsed = (usage.totalStandardGb || 0) + (usage.totalPriorityGb || 0);
+            return Math.round((totalUsed / usage.includedGb) * 100);
+        }
+
+        // Formatiere Datenverbrauch
+        function formatDataUsage(gb) {
+            if (gb === null || gb === undefined) return '--';
+            return `${gb.toFixed(2)} GB`;
+        }
+
+        // Bestimme Status-Klasse basierend auf verschiedenen Faktoren
+        function determineStatusClass(serviceLine) {
+            // Wenn Service nicht aktiv ist
+            if (serviceLine.status !== 'active') {
+                return 'offline';
+            }
+
+            // Prüfe ob Terminals aktiv sind
+            const hasActiveTerminal = serviceLine.userTerminals &&
+                serviceLine.userTerminals.some(t => t.active);
+
+            if (!hasActiveTerminal) {
+                return 'offline';
+            }
+
+            // Prüfe Datenverbrauch (aktueller Monat)
+            if (serviceLine.monthlyUsage && serviceLine.monthlyUsage.length > 0) {
+                const currentUsage = serviceLine.monthlyUsage[0];
+                const usagePercent = calculateUsagePercentage(currentUsage);
+
+                // Warnung wenn über 100% des Limits
+                if (usagePercent >= 100) {
+                    return 'warning';
+                }
+            }
+
             return 'online';
         }
 
         // Service Card HTML generieren
-        function createServiceCard(service) {
-            const statusClass = service.status || determineStatus(service.signalStrength);
-            const lastSeenText = service.lastSeen ?
-                new Date(service.lastSeen).toLocaleString('de-DE') :
-                'Unbekannt';
+        function createServiceCard(serviceLine) {
+            const shipName = extractShipName(serviceLine.name);
+            const imo = extractIMO(serviceLine.name);
+            const statusClass = determineStatusClass(serviceLine);
+
+            // Aktueller Monat (erster Eintrag im Array)
+            const currentUsage = serviceLine.monthlyUsage && serviceLine.monthlyUsage.length > 0
+                ? serviceLine.monthlyUsage[0]
+                : null;
+
+            const totalUsed = currentUsage
+                ? (currentUsage.totalStandardGb || 0) + (currentUsage.totalPriorityGb || 0)
+                : 0;
+
+            const includedGb = currentUsage ? currentUsage.includedGb : 0;
+            const usagePercent = calculateUsagePercentage(currentUsage);
+
+            // Terminal-Informationen
+            const activeTerminals = serviceLine.userTerminals
+                ? serviceLine.userTerminals.filter(t => t.active).length
+                : 0;
+            const totalTerminals = serviceLine.userTerminals ? serviceLine.userTerminals.length : 0;
+
+            // Terminal Details
+            const terminal = serviceLine.userTerminals && serviceLine.userTerminals.length > 0
+                ? serviceLine.userTerminals[0]
+                : null;
+
+            // Bestimme Farbe für Verbrauchsbalken
+            let usageBarColor = 'linear-gradient(90deg, #10b981 0%, #059669 100%)';
+            if (usagePercent >= 100) {
+                usageBarColor = 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)';
+            } else if (usagePercent >= 80) {
+                usageBarColor = 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)';
+            }
 
             return `
                 <div class="service-card ${statusClass}">
                     <div class="service-header">
                         <div>
-                            <div class="service-title">${service.name || 'Unbekannter Service'}</div>
-                            <div class="service-id">${service.id || 'N/A'}</div>
+                            <div class="service-title">${shipName}</div>
+                            <div class="service-id">${imo ? `IMO: ${imo}` : serviceLine.id}</div>
                         </div>
                         <div class="status-indicator ${statusClass}"></div>
                     </div>
 
                     <div class="service-details">
                         <div class="detail-item">
-                            <div class="detail-label">Standort</div>
-                            <div class="detail-value">${service.location || 'Unbekannt'}</div>
+                            <div class="detail-label">Status</div>
+                            <div class="detail-value">${serviceLine.status === 'active' ? 'Aktiv' : 'Inaktiv'}</div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Uptime</div>
-                            <div class="detail-value">${service.uptime || '--'}</div>
+                            <div class="detail-label">Terminals</div>
+                            <div class="detail-value">${activeTerminals} / ${totalTerminals} aktiv</div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Latenz</div>
-                            <div class="detail-value">${service.latency || '--'}</div>
+                            <div class="detail-label">Kit Serial</div>
+                            <div class="detail-value">${terminal ? terminal.kitSerialNumber : '--'}</div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Zuletzt gesehen</div>
-                            <div class="detail-value">${lastSeenText}</div>
+                            <div class="detail-label">Dish Serial</div>
+                            <div class="detail-value">${terminal ? terminal.dishSerialNumber.substring(0, 12) + '...' : '--'}</div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Download</div>
-                            <div class="detail-value">${service.downlink || '--'}</div>
+                            <div class="detail-label">Datenverbrauch</div>
+                            <div class="detail-value">${formatDataUsage(totalUsed)}</div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Upload</div>
-                            <div class="detail-value">${service.uplink || '--'}</div>
+                            <div class="detail-label">Limit</div>
+                            <div class="detail-value">${includedGb} GB</div>
+                        </div>
+                        ${currentUsage && currentUsage.totalStandardGb > 0 ? `
+                        <div class="detail-item">
+                            <div class="detail-label">Standard</div>
+                            <div class="detail-value">${formatDataUsage(currentUsage.totalStandardGb)}</div>
+                        </div>
+                        ` : ''}
+                        <div class="detail-item">
+                            <div class="detail-label">Priority</div>
+                            <div class="detail-value">${currentUsage ? formatDataUsage(currentUsage.totalPriorityGb) : '--'}</div>
                         </div>
                     </div>
 
                     <div class="signal-strength">
-                        <div class="detail-label">Signalstärke: ${service.signalStrength || 0}%</div>
+                        <div class="detail-label">Datenverbrauch: ${usagePercent}% ${usagePercent >= 100 ? '⚠️ LIMIT ÜBERSCHRITTEN' : ''}</div>
                         <div class="signal-bar">
-                            <div class="signal-fill" style="width: ${service.signalStrength || 0}%"></div>
+                            <div class="signal-fill" style="width: ${Math.min(usagePercent, 100)}%; background: ${usageBarColor}"></div>
                         </div>
                     </div>
                 </div>
@@ -490,28 +521,28 @@
             const lastUpdateDiv = document.getElementById('lastUpdate');
 
             try {
-                const services = await fetchServiceLines();
+                const serviceLines = await fetchServiceLines();
 
                 // Status-Zähler
                 let onlineCount = 0;
                 let offlineCount = 0;
                 let warningCount = 0;
 
-                services.forEach(service => {
-                    const status = service.status || determineStatus(service.signalStrength);
+                serviceLines.forEach(service => {
+                    const status = determineStatusClass(service);
                     if (status === 'online') onlineCount++;
                     else if (status === 'offline') offlineCount++;
                     else if (status === 'warning') warningCount++;
                 });
 
                 // Header aktualisieren
-                document.getElementById('onlineCount').textContent = `Online: ${onlineCount}`;
-                document.getElementById('offlineCount').textContent = `Offline: ${offlineCount}`;
+                document.getElementById('onlineCount').textContent = `Aktiv: ${onlineCount}`;
+                document.getElementById('offlineCount').textContent = `Inaktiv: ${offlineCount}`;
                 document.getElementById('warningCount').textContent = `Warnung: ${warningCount}`;
 
                 // Services rendern
-                if (services && services.length > 0) {
-                    const servicesHtml = services.map(service => createServiceCard(service)).join('');
+                if (serviceLines && serviceLines.length > 0) {
+                    const servicesHtml = serviceLines.map(service => createServiceCard(service)).join('');
                     contentDiv.innerHTML = `<div class="services-grid">${servicesHtml}</div>`;
                 } else {
                     contentDiv.innerHTML = '<div class="error-message">Keine Service-Lines gefunden</div>';
@@ -525,14 +556,19 @@
                 console.error('Fehler beim Aktualisieren des Dashboards:', error);
                 contentDiv.innerHTML = `
                     <div class="error-message">
-                        <h2>Fehler beim Laden der Daten</h2>
+                        <h2>⚠️ Fehler beim Laden der Daten</h2>
                         <p>${error.message}</p>
-                        <p>Verwende Mock-Daten zur Demonstration...</p>
+                        <p style="margin-top: 15px; font-size: 0.9em;">
+                            Mögliche Ursachen:<br>
+                            • Keine Verbindung zur API<br>
+                            • API-Token abgelaufen<br>
+                            • Netzwerk-Problem
+                        </p>
+                        <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">
+                            Das Dashboard versucht automatisch neu zu laden...
+                        </p>
                     </div>
                 `;
-                // Bei Fehler Mock-Daten verwenden
-                useMockData = true;
-                setTimeout(updateDashboard, 1000);
             }
         }
 
@@ -549,13 +585,11 @@
                 e.preventDefault();
                 updateDashboard();
             }
-            // M-Taste für Mock-Daten Toggle (Entwicklung)
-            if (e.key === 'm' || e.key === 'M') {
-                useMockData = !useMockData;
-                console.log('Mock-Daten:', useMockData ? 'aktiviert' : 'deaktiviert');
-                updateDashboard();
-            }
         });
+
+        // Log für Entwickler
+        console.log('IT Monitoring Dashboard gestartet');
+        console.log('Auto-Refresh:', API_CONFIG.refreshInterval / 1000, 'Sekunden');
     </script>
 </body>
 </html>
