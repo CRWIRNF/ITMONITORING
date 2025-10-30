@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: it-monitoring-dashboard
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Berlin
+    networks:
+      - dashboard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/dashboard-demo.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "com.example.description=IT Monitoring Dashboard"
+      - "com.example.version=1.0"
+
+networks:
+  dashboard-network:
+    driver: bridge
+
+# Optional: Volumes für Logs (falls gewünscht)
+# volumes:
+#   dashboard-logs:

@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node modules (falls vorhanden)
+node_modules/
+
+# Dokumentation (optional - nur wenn Sie Platz sparen wollen)
+# README.md
+# INSTALLATION.md
+
+# Andere Docker-Dateien
+Dockerfile
+docker-compose.yml
+.dockerignore
