@@ -1,0 +1,43 @@
+{
+  "version": "1.1.1",
+  "releaseDate": "2026-03-01",
+  "changelog": [
+    {
+      "version": "1.1.1",
+      "date": "2026-03-01",
+      "changes": [
+        "📈 12-Monats-Trendverlauf im Ticketsystem (LineChart mit Erstellt/Geschlossen/Offen)",
+        "🗄️ Permanente monatliche Aggregationstabelle für Ticket-Statistiken",
+        "⏱️ Automatischer Backfill und stündliche Aktualisierung der Monatsdaten",
+        "🔗 Neuer API-Endpunkt GET /ticketsystem/trend"
+      ],
+      "type": "feature"
+    },
+    {
+      "version": "1.1.0",
+      "date": "2025-12-16",
+      "changes": [
+        "✅ Sicherheitsfixes: JWT-Validierung, CORS-Schutz, Rate Limiting",
+        "✅ Automatischer Starlink-Update-Scheduler (täglich 3:00 Uhr)",
+        "✅ Verbesserte API-Fehlerbehandlung mit detaillierten Hinweisen",
+        "✅ Security Headers (Helmet.js) implementiert",
+        "✅ Umfassende Input-Validierung",
+        "✅ Versionierungssystem hinzugefügt"
+      ],
+      "type": "feature"
+    },
+    {
+      "version": "1.0.0",
+      "date": "2025-11-05",
+      "changes": [
+        "🚀 Initial Release",
+        "📊 Dashboard mit Monitoring-Übersicht",
+        "🛰️ Starlink-Datenauswertung",
+        "🎫 NinjaOne Ticketsystem-Integration",
+        "🔥 Firewall-Monitoring (SNMP)",
+        "🌐 Website-Verfügbarkeitsüberwachung"
+      ],
+      "type": "release"
+    }
+  ]
+}
