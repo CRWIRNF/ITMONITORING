@@ -13,6 +13,7 @@ interface TicketingCache {
 }
 
 let ticketingCache: TicketingCache | null = null;
+let topCreatorsCache: TicketingCache | null = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 Minuten in Millisekunden
 
 export const getDashboard = async (req: AuthRequest, res: Response) => {
@@ -223,6 +224,24 @@ export const getTicketTrend = async (req: AuthRequest, res: Response) => {
     res.json({ data: formatted });
   } catch (error) {
     console.error('Ticket-Trend-Fehler:', error);
+    res.status(500).json({ error: 'Interner Serverfehler' });
+  }
+};
+
+export const getTopTicketCreators = async (req: AuthRequest, res: Response) => {
+  try {
+    const now = Date.now();
+    if (topCreatorsCache && (now - topCreatorsCache.timestamp) < CACHE_DURATION) {
+      return res.json({ data: topCreatorsCache.data });
+    }
+
+    const limit = parseInt(req.query.limit as string) || 10;
+    const data = await ticketingService.getTopTicketCreators(limit);
+
+    topCreatorsCache = { data, timestamp: now };
+    res.json({ data });
+  } catch (error) {
+    console.error('Top-Ticket-Ersteller-Fehler:', error);
     res.status(500).json({ error: 'Interner Serverfehler' });
   }
 };

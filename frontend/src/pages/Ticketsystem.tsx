@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { monitoringService } from '../services/monitoringService';
-import { TicketingData, TicketTrendEntry } from '../types';
+import { TicketingData, TicketTrendEntry, TicketCreatorEntry } from '../types';
 
 export default function Ticketsystem() {
   const [data, setData] = useState<TicketingData | null>(null);
@@ -11,6 +11,8 @@ export default function Ticketsystem() {
   const [error, setError] = useState('');
   const [trendData, setTrendData] = useState<TicketTrendEntry[]>([]);
   const [trendLoading, setTrendLoading] = useState(true);
+  const [topCreators, setTopCreators] = useState<TicketCreatorEntry[]>([]);
+  const [creatorsLoading, setCreatorsLoading] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -37,6 +39,17 @@ export default function Ticketsystem() {
       console.error('Fehler beim Laden der Trend-Daten:', err);
     } finally {
       setTrendLoading(false);
+    }
+
+    // Top-Ersteller laden
+    try {
+      setCreatorsLoading(true);
+      const creators = await monitoringService.getTopTicketCreators();
+      setTopCreators(creators);
+    } catch (err: any) {
+      console.error('Fehler beim Laden der Top-Ersteller:', err);
+    } finally {
+      setCreatorsLoading(false);
     }
   };
 
@@ -234,6 +247,72 @@ export default function Ticketsystem() {
                   <Line type="monotone" dataKey="open" name="Offen" stroke="#F59E0B" strokeWidth={2} dot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Top Ticket-Ersteller */}
+          <div className="card">
+            <h2 className="text-2xl font-semibold mb-6">Top Ticket-Ersteller</h2>
+            {creatorsLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="text-gray-500">Lade Ersteller-Daten...</div>
+              </div>
+            ) : topCreators.length === 0 ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="text-gray-500">Keine Daten verfügbar</div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Tickets</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Anteil</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {topCreators.map((creator, index) => {
+                      const maxCount = topCreators[0]?.count || 1;
+                      const percentage = Math.round((creator.count / maxCount) * 100);
+                      return (
+                        <tr key={creator.name} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
+                              index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                              index === 1 ? 'bg-gray-100 text-gray-700' :
+                              index === 2 ? 'bg-orange-100 text-orange-800' :
+                              'bg-gray-50 text-gray-500'
+                            }`}>
+                              {index + 1}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{creator.name}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <div className="text-sm font-semibold text-gray-900">{creator.count}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="w-full bg-gray-100 rounded-full h-4">
+                              <div
+                                className={`h-4 rounded-full ${
+                                  index === 0 ? 'bg-blue-500' :
+                                  index === 1 ? 'bg-blue-400' :
+                                  index === 2 ? 'bg-blue-300' :
+                                  'bg-blue-200'
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              ></div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

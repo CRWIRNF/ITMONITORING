@@ -1,5 +1,5 @@
 import api from './api';
-import { MonitoringEntry, DashboardSummary, TicketingData, TicketTrendEntry } from '../types';
+import { MonitoringEntry, DashboardSummary, TicketingData, TicketTrendEntry, TicketCreatorEntry } from '../types';
 
 export const monitoringService = {
   async getDashboard(): Promise<DashboardSummary[]> {
@@ -19,6 +19,11 @@ export const monitoringService = {
 
   async getTicketTrend(months: number = 12): Promise<TicketTrendEntry[]> {
     const response = await api.get<{ data: TicketTrendEntry[] }>(`/monitoring/ticketsystem/trend?months=${months}`);
+    return response.data.data;
+  },
+
+  async getTopTicketCreators(): Promise<TicketCreatorEntry[]> {
+    const response = await api.get<{ data: TicketCreatorEntry[] }>('/monitoring/ticketsystem/top-creators');
     return response.data.data;
   },
 

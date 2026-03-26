@@ -332,6 +332,31 @@ export class TicketingService {
   }
 
   /**
+   * Ermittelt die Top-Ticket-Ersteller (gruppiert nach requester)
+   */
+  async getTopTicketCreators(limit: number = 10): Promise<{ name: string; count: number }[]> {
+    try {
+      const tickets = await this.getTicketsFromBoard(2);
+
+      const creatorMap = new Map<string, number>();
+      for (const ticket of tickets) {
+        const name = ticket.requester;
+        if (name) {
+          creatorMap.set(name, (creatorMap.get(name) || 0) + 1);
+        }
+      }
+
+      return Array.from(creatorMap.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+    } catch (error: any) {
+      console.error('Fehler beim Ermitteln der Top-Ticket-Ersteller:', error);
+      return [];
+    }
+  }
+
+  /**
    * Health-Check: Testet ob die Ticketing-API erreichbar ist
    */
   async healthCheck(): Promise<{ status: 'ok' | 'error', message: string }> {

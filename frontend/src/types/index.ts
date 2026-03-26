@@ -61,6 +61,11 @@ export interface TicketTrendEntry {
   closed: number;
 }
 
+export interface TicketCreatorEntry {
+  name: string;
+  count: number;
+}
+
 export interface TicketingData {
   service_type: string;
   service_name: string;
