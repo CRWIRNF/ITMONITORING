@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import net from 'net';
 import { snmpService } from '../services/snmpService';
 import { FirewallHistoryModel } from '../models/FirewallHistory';
 
@@ -43,10 +44,10 @@ export const getFirewallStatsByIp = async (req: Request, res: Response) => {
   try {
     const { ip } = req.params;
 
-    if (!ip) {
+    if (!ip || net.isIP(ip) === 0) {
       return res.status(400).json({
         success: false,
-        message: 'IP-Adresse ist erforderlich'
+        message: 'Gültige IP-Adresse ist erforderlich'
       });
     }
 
@@ -115,10 +116,10 @@ export const getFirewallHistoryByIp = async (req: Request, res: Response) => {
     const { ip } = req.params;
     const hoursBack = parseInt(req.query.hours as string) || 4;
 
-    if (!ip) {
+    if (!ip || net.isIP(ip) === 0) {
       return res.status(400).json({
         success: false,
-        message: 'IP-Adresse ist erforderlich'
+        message: 'Gültige IP-Adresse ist erforderlich'
       });
     }
 

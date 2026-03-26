@@ -1,7 +1,15 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import net from 'net';
 
 const execAsync = promisify(exec);
+
+/**
+ * Validiert eine IP-Adresse gegen Command Injection
+ */
+function isValidIP(ip: string): boolean {
+  return net.isIP(ip) !== 0;
+}
 
 export interface FirewallSNMPData {
   hostname: string;
@@ -63,6 +71,13 @@ export class SNMPService {
    */
   private async snmpGet(ip: string, oid: string): Promise<string> {
     try {
+      if (!isValidIP(ip)) {
+        throw new Error(`Ungültige IP-Adresse: ${ip}`);
+      }
+      // OID darf nur Ziffern und Punkte enthalten
+      if (!/^[\d.]+$/.test(oid)) {
+        throw new Error(`Ungültige OID: ${oid}`);
+      }
       const command = `snmpget -v2c -c ${this.community} -t ${this.timeout} -r 1 ${ip} ${oid}`;
       const { stdout } = await execAsync(command);
 

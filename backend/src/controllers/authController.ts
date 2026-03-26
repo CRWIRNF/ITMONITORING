@@ -51,11 +51,14 @@ export const login = async (req: Request, res: Response) => {
       console.error('Fehler beim Loggen des erfolgreichen Logins:', logError);
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'monitoring_jwt_secret_key_change_this_in_production_123456789';
+    if (!process.env.JWT_SECRET) {
+      console.error('FATAL: JWT_SECRET ist nicht gesetzt');
+      return res.status(500).json({ error: 'Server-Konfigurationsfehler' });
+    }
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      jwtSecret,
+      process.env.JWT_SECRET,
       { expiresIn: (process.env.JWT_EXPIRES_IN || '24h') as any }
     );
 

@@ -87,12 +87,13 @@ export class WebsiteMonitoringModel {
   }
 
   static async updateWebsite(id: number, updates: Partial<Website>): Promise<Website | null> {
+    const allowedFields = ['url', 'name', 'enabled', 'check_interval'];
     const fields: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
 
     Object.entries(updates).forEach(([key, value]) => {
-      if (key !== 'id' && key !== 'created_at' && key !== 'updated_at') {
+      if (allowedFields.includes(key)) {
         fields.push(`${key} = $${paramIndex}`);
         values.push(value);
         paramIndex++;
@@ -183,9 +184,9 @@ export class WebsiteMonitoringModel {
   static async deleteOldChecks(olderThanHours: number = 24) {
     const query = `
       DELETE FROM website_checks
-      WHERE checked_at < NOW() - INTERVAL '${olderThanHours} hours';
+      WHERE checked_at < NOW() - INTERVAL '1 hour' * $1;
     `;
-    const result = await pool.query(query);
+    const result = await pool.query(query, [olderThanHours]);
     return result.rowCount;
   }
 
