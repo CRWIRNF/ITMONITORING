@@ -1,7 +1,22 @@
 {
-  "version": "1.1.1",
-  "releaseDate": "2026-03-01",
+  "version": "1.2.0",
+  "releaseDate": "2026-03-26",
   "changelog": [
+    {
+      "version": "1.2.0",
+      "date": "2026-03-26",
+      "changes": [
+        "👥 Top Ticket-Ersteller Ranking im Ticketsystem (Tabelle mit Balkenvisualisierung)",
+        "🔗 Neuer API-Endpunkt GET /ticketsystem/top-creators mit 5-Min-Cache",
+        "🔒 Command Injection Fix: IP-Validierung via net.isIP() im SNMP-Service",
+        "🔒 SQL Injection Fix: Whitelist für Spaltennamen in WebsiteMonitoring.updateWebsite()",
+        "🔒 SQL Injection Fix: Parametrisierte Query in deleteOldChecks()",
+        "🔒 JWT-Hardening: Hardcoded Fallback-Secret entfernt",
+        "🔒 Firewall-Controller: IP-Format-Validierung in allen Endpunkten",
+        "📦 Dependency-Updates: express-rate-limit 8.3.1, rollup 4.60.0, picomatch 2.3.2+"
+      ],
+      "type": "feature"
+    },
     {
       "version": "1.1.1",
       "date": "2026-03-01",

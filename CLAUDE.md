@@ -53,6 +53,7 @@ frontend/src/
 - **Auth flow**: JWT in localStorage → Axios request interceptor adds `Authorization: Bearer` header → backend `authenticate` middleware validates → 401 triggers frontend redirect to `/login`.
 - **Roles**: `admin`, `user`, `viewer` — role checked in middleware for privileged routes.
 - **Scheduling**: `node-cron` jobs defined in `index.ts` with Europe/Berlin timezone. Starlink daily 3AM, websites/firewalls/system every 5min, tickets every 30min.
+- **Caching**: In-memory caches with 5-minute TTL for ticketing data and top-creators (see `monitoringController.ts`).
 
 ### Data Retention
 - Website checks: 24-hour rolling window
@@ -76,6 +77,16 @@ Backend requires `.env` (see `backend/.env.example`). Key variables:
 - `ALLOWED_ORIGINS` — comma-separated CORS whitelist
 - `FIREWALL_IPS` — comma-separated SNMP target IPs
 
+## Security
+
+Key security measures applied (see `SECURITY_FIXES_APPLIED.md` for full status):
+- IP validation via `net.isIP()` before SNMP shell commands (prevents command injection)
+- SQL column whitelist in dynamic queries (prevents SQL injection)
+- JWT\_SECRET required at runtime (no fallback)
+- Rate limiting, CORS whitelist, Helmet.js headers
+
+**Still open:** CSRF protection, JWT migration to httpOnly cookies, default password rotation, error.message removal from responses.
+
 ## Versioning
 
-Version tracked in `VERSION.json` at project root. Frontend `VersionBell` component notifies users of updates. Changelog entries are in German.
+Version tracked in `VERSION.json` at project root (current: 1.2.0). Frontend `VersionBell` component notifies users of updates. Changelog entries are in German.
