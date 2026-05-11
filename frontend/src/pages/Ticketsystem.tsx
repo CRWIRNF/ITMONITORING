@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { monitoringService } from '../services/monitoringService';
-import { TicketingData, TicketTrendEntry, TicketCreatorEntry } from '../types';
+import { TicketingData, TicketTrendEntry, TicketCreatorEntry, TicketHistory } from '../types';
 
 export default function Ticketsystem() {
   const [data, setData] = useState<TicketingData | null>(null);
@@ -13,6 +13,9 @@ export default function Ticketsystem() {
   const [trendLoading, setTrendLoading] = useState(true);
   const [topCreators, setTopCreators] = useState<TicketCreatorEntry[]>([]);
   const [creatorsLoading, setCreatorsLoading] = useState(true);
+  const [history, setHistory] = useState<TicketHistory | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState('');
 
   useEffect(() => {
     loadData();
@@ -51,6 +54,25 @@ export default function Ticketsystem() {
     } finally {
       setCreatorsLoading(false);
     }
+
+    // Historische Aggregation (Monat + Woche) laden
+    try {
+      setHistoryLoading(true);
+      setHistoryError('');
+      const hist = await monitoringService.getTicketHistory();
+      setHistory(hist);
+    } catch (err: any) {
+      console.error('Fehler beim Laden der Ticket-Historie:', err);
+      setHistoryError('Historie konnte nicht geladen werden');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const formatDate = (iso: string | null) => {
+    if (!iso) return '–';
+    const d = new Date(iso);
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   if (loading) {
@@ -247,6 +269,101 @@ export default function Ticketsystem() {
                   <Line type="monotone" dataKey="open" name="Offen" stroke="#F59E0B" strokeWidth={2} dot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Historische Auswertung: Erstellte Tickets pro Monat & Woche */}
+          <div className="card">
+            <h2 className="text-2xl font-semibold mb-2">Erstellte Tickets pro Monat</h2>
+            {history && (
+              <p className="text-sm text-gray-500 mb-4">
+                Auswertung über {history.totalTickets.toLocaleString('de-DE')} Tickets
+                {history.oldestTicketDate && history.newestTicketDate && (
+                  <> · {formatDate(history.oldestTicketDate)} bis {formatDate(history.newestTicketDate)}</>
+                )}
+              </p>
+            )}
+            {historyLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="text-gray-500">Lade historische Daten (kann beim ersten Aufruf etwas dauern)…</div>
+              </div>
+            ) : historyError ? (
+              <div className="text-red-600 text-sm">{historyError}</div>
+            ) : !history || history.monthly.length === 0 ? (
+              <div className="text-gray-500 text-sm">Keine Daten verfügbar</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monat</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Erstellt</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Anteil</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {history.monthly.map((m) => {
+                      const maxCount = Math.max(...history.monthly.map(e => e.count), 1);
+                      const percentage = Math.round((m.count / maxCount) * 100);
+                      return (
+                        <tr key={m.period} className="hover:bg-gray-50">
+                          <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{m.label}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">{m.count}</td>
+                          <td className="px-6 py-3">
+                            <div className="w-full bg-gray-100 rounded-full h-3">
+                              <div className="h-3 rounded-full bg-blue-500" style={{ width: `${percentage}%` }} />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <h2 className="text-2xl font-semibold mb-4">Erstellte Tickets pro Woche</h2>
+            {historyLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="text-gray-500">Lade historische Daten…</div>
+              </div>
+            ) : historyError ? (
+              <div className="text-red-600 text-sm">{historyError}</div>
+            ) : !history || history.weekly.length === 0 ? (
+              <div className="text-gray-500 text-sm">Keine Daten verfügbar</div>
+            ) : (
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">KW</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Zeitraum</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Erstellt</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Anteil</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {history.weekly.map((w) => {
+                      const maxCount = Math.max(...history.weekly.map(e => e.count), 1);
+                      const percentage = Math.round((w.count / maxCount) * 100);
+                      return (
+                        <tr key={w.period} className="hover:bg-gray-50">
+                          <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{w.label}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-600">{w.rangeLabel}</td>
+                          <td className="px-6 py-3 whitespace-nowrap text-right text-sm font-semibold text-gray-900">{w.count}</td>
+                          <td className="px-6 py-3">
+                            <div className="w-full bg-gray-100 rounded-full h-3">
+                              <div className="h-3 rounded-full bg-purple-500" style={{ width: `${percentage}%` }} />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

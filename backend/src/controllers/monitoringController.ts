@@ -14,6 +14,7 @@ interface TicketingCache {
 
 let ticketingCache: TicketingCache | null = null;
 let topCreatorsCache: TicketingCache | null = null;
+let ticketHistoryCache: TicketingCache | null = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 Minuten in Millisekunden
 
 export const getDashboard = async (req: AuthRequest, res: Response) => {
@@ -242,6 +243,23 @@ export const getTopTicketCreators = async (req: AuthRequest, res: Response) => {
     res.json({ data });
   } catch (error) {
     console.error('Top-Ticket-Ersteller-Fehler:', error);
+    res.status(500).json({ error: 'Interner Serverfehler' });
+  }
+};
+
+export const getTicketHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const now = Date.now();
+    if (ticketHistoryCache && (now - ticketHistoryCache.timestamp) < CACHE_DURATION) {
+      return res.json({ data: ticketHistoryCache.data });
+    }
+
+    const data = await ticketingService.getTicketHistory();
+
+    ticketHistoryCache = { data, timestamp: now };
+    res.json({ data });
+  } catch (error) {
+    console.error('Ticket-Historie-Fehler:', error);
     res.status(500).json({ error: 'Interner Serverfehler' });
   }
 };

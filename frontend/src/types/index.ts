@@ -66,6 +66,31 @@ export interface TicketCreatorEntry {
   count: number;
 }
 
+export interface TicketMonthlyHistoryEntry {
+  period: string;
+  year: number;
+  month: number;
+  label: string;
+  count: number;
+}
+
+export interface TicketWeeklyHistoryEntry {
+  period: string;
+  isoYear: number;
+  isoWeek: number;
+  label: string;
+  rangeLabel: string;
+  count: number;
+}
+
+export interface TicketHistory {
+  monthly: TicketMonthlyHistoryEntry[];
+  weekly: TicketWeeklyHistoryEntry[];
+  totalTickets: number;
+  oldestTicketDate: string | null;
+  newestTicketDate: string | null;
+}
+
 export interface TicketingData {
   service_type: string;
   service_name: string;

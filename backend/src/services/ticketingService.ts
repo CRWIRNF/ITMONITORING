@@ -154,6 +154,52 @@ export class TicketingService {
   }
 
   /**
+   * Ruft ALLE Tickets paginiert von einem Board ab (für vollständige Historie).
+   * Sortiert nach ID aufsteigend, lädt seitenweise bis keine weiteren Tickets mehr kommen.
+   */
+  private async getAllTicketsFromBoard(boardId: number, pageSize: number = 1000): Promise<any[]> {
+    const token = await (ninjaService as any).getAccessToken();
+    const axios = require('axios');
+
+    const allTickets: any[] = [];
+    let lastCursorId: number | null = null;
+    const MAX_PAGES = 50; // Sicherheitsabbruch: 50.000 Tickets
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const requestBody: any = {
+        pageSize,
+        sortBy: [{ field: 'id', direction: 'ASC' }]
+      };
+      if (lastCursorId !== null) {
+        requestBody.lastCursorId = lastCursorId;
+      }
+
+      const response = await axios.post(
+        `${(ninjaService as any).apiUrl}/v2/ticketing/trigger/board/${boardId}/run`,
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const pageData: any[] = response.data.data || [];
+      if (pageData.length === 0) break;
+
+      allTickets.push(...pageData);
+
+      if (pageData.length < pageSize) break; // letzte Seite
+      lastCursorId = pageData[pageData.length - 1].id;
+    }
+
+    console.log(`✓ ${allTickets.length} Tickets paginiert von Board ${boardId} geladen`);
+    return allTickets;
+  }
+
+  /**
    * Ruft die Ticket-Erstellungs-Statistiken ab (basierend auf tatsächlichen createTime-Werten)
    */
   async getTicketCreationStats(): Promise<TicketCreationStats> {
@@ -357,6 +403,85 @@ export class TicketingService {
   }
 
   /**
+   * Aggregiert alle Tickets (paginiert geladen) nach Monat und nach ISO-Kalenderwoche.
+   * Basis: createTime jedes Tickets (Unix-Sekunden).
+   */
+  async getTicketHistory(): Promise<{
+    monthly: { period: string; year: number; month: number; label: string; count: number }[];
+    weekly: { period: string; isoYear: number; isoWeek: number; label: string; rangeLabel: string; count: number }[];
+    totalTickets: number;
+    oldestTicketDate: string | null;
+    newestTicketDate: string | null;
+  }> {
+    const tickets = await this.getAllTicketsFromBoard(2);
+
+    const germanMonths = ['Jan', 'Feb', 'Mrz', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+
+    const monthlyMap = new Map<string, { year: number; month: number; count: number }>();
+    const weeklyMap = new Map<string, { isoYear: number; isoWeek: number; weekStart: Date; weekEnd: Date; count: number }>();
+
+    let minTime: number | null = null;
+    let maxTime: number | null = null;
+
+    for (const t of tickets) {
+      const createTime: number | undefined = t.createTime;
+      if (!createTime) continue;
+
+      const ms = createTime * 1000;
+      if (minTime === null || ms < minTime) minTime = ms;
+      if (maxTime === null || ms > maxTime) maxTime = ms;
+
+      const d = new Date(ms);
+
+      // Monatsbucket (lokale Zeit Europe/Berlin reicht — Server läuft in dieser Zone)
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+      const m = monthlyMap.get(monthKey);
+      if (m) m.count++;
+      else monthlyMap.set(monthKey, { year, month, count: 1 });
+
+      // ISO-Woche (Donnerstag-Regel)
+      const { isoYear, isoWeek, weekStart, weekEnd } = getISOWeekInfo(d);
+      const weekKey = `${isoYear}-W${String(isoWeek).padStart(2, '0')}`;
+      const w = weeklyMap.get(weekKey);
+      if (w) w.count++;
+      else weeklyMap.set(weekKey, { isoYear, isoWeek, weekStart, weekEnd, count: 1 });
+    }
+
+    // Sortierung: neueste zuerst
+    const monthly = Array.from(monthlyMap.entries())
+      .map(([period, v]) => ({
+        period,
+        year: v.year,
+        month: v.month,
+        label: `${germanMonths[v.month - 1]} ${v.year}`,
+        count: v.count
+      }))
+      .sort((a, b) => b.period.localeCompare(a.period));
+
+    const pad2 = (n: number) => String(n).padStart(2, '0');
+    const weekly = Array.from(weeklyMap.entries())
+      .map(([period, v]) => ({
+        period,
+        isoYear: v.isoYear,
+        isoWeek: v.isoWeek,
+        label: `KW ${pad2(v.isoWeek)}/${v.isoYear}`,
+        rangeLabel: `${pad2(v.weekStart.getDate())}.${pad2(v.weekStart.getMonth() + 1)}.–${pad2(v.weekEnd.getDate())}.${pad2(v.weekEnd.getMonth() + 1)}.`,
+        count: v.count
+      }))
+      .sort((a, b) => b.period.localeCompare(a.period));
+
+    return {
+      monthly,
+      weekly,
+      totalTickets: tickets.length,
+      oldestTicketDate: minTime !== null ? new Date(minTime).toISOString() : null,
+      newestTicketDate: maxTime !== null ? new Date(maxTime).toISOString() : null
+    };
+  }
+
+  /**
    * Health-Check: Testet ob die Ticketing-API erreichbar ist
    */
   async healthCheck(): Promise<{ status: 'ok' | 'error', message: string }> {
@@ -376,3 +501,35 @@ export class TicketingService {
 }
 
 export const ticketingService = new TicketingService();
+
+/**
+ * ISO-8601-Wochenberechnung (Mo=erster Tag, Donnerstag-Regel).
+ * Liefert ISO-Jahr, ISO-Woche, sowie Wochenstart (Mo) und -ende (So) als lokale Date-Objekte.
+ */
+function getISOWeekInfo(date: Date): { isoYear: number; isoWeek: number; weekStart: Date; weekEnd: Date } {
+  // Tag-Index Mo=0..So=6
+  const dayIdx = (date.getDay() + 6) % 7;
+
+  // Donnerstag derselben ISO-Woche
+  const thursday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  thursday.setDate(thursday.getDate() - dayIdx + 3);
+
+  const isoYear = thursday.getFullYear();
+
+  // 1. Januar des ISO-Jahres
+  const jan1 = new Date(isoYear, 0, 1);
+  const jan1DayIdx = (jan1.getDay() + 6) % 7;
+  // Erster Donnerstag des ISO-Jahres
+  const firstThursday = new Date(isoYear, 0, 1);
+  firstThursday.setDate(firstThursday.getDate() + ((3 - jan1DayIdx + 7) % 7));
+
+  const isoWeek = 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+
+  // Wochenstart (Montag) und -ende (Sonntag) für diese Woche
+  const weekStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  weekStart.setDate(weekStart.getDate() - dayIdx);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  return { isoYear, isoWeek, weekStart, weekEnd };
+}

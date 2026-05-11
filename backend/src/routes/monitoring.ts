@@ -4,6 +4,7 @@ import {
   getStarlinkStatus,
   getTicketsystemStatus,
   getTicketTrend,
+  getTicketHistory,
   getTopTicketCreators,
   getFirewallStatus,
   getWebsiteStatus,
@@ -19,6 +20,7 @@ router.use(authenticate);
 router.get('/dashboard', getDashboard);
 router.get('/starlink', getStarlinkStatus);
 router.get('/ticketsystem/trend', getTicketTrend);
+router.get('/ticketsystem/history', getTicketHistory);
 router.get('/ticketsystem/top-creators', getTopTicketCreators);
 router.get('/ticketsystem', getTicketsystemStatus);
 router.get('/firewalls', getFirewallStatus);
