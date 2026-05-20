@@ -192,7 +192,12 @@ export class TicketingService {
       allTickets.push(...pageData);
 
       if (pageData.length < pageSize) break; // letzte Seite
-      lastCursorId = pageData[pageData.length - 1].id;
+
+      // NinjaOne liefert den Cursor für die nächste Seite in metadata.lastCursorId
+      // (opaker Wert, NICHT die letzte Ticket-ID — sonst gibt die API 0 Tickets zurück)
+      const nextCursor = response.data.metadata?.lastCursorId;
+      if (nextCursor == null || nextCursor === lastCursorId) break;
+      lastCursorId = nextCursor;
     }
 
     console.log(`✓ ${allTickets.length} Tickets paginiert von Board ${boardId} geladen`);
